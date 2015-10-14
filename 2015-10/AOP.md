@@ -1,6 +1,14 @@
 #1 2015-10-14 AOP讨论
 
-讨论内容方向如下：
+强烈推荐文章
+
+-	[AOP 那点事儿](http://my.oschina.net/huangyong/blog/161338) 黄勇
+-	[AOP 那点事儿（续集）](http://my.oschina.net/huangyong/blog/161402) 黄勇
+-	[我对AOP的理解](http://jinnianshilongnian.iteye.com/blog/1474325)   开涛
+-	[AOP实现机制](http://www.iteye.com/topic/1116696) fantasy
+-	[跟我学aspectj](http://blog.csdn.net/zl3450341/article/category/1169602) 兔子党-大胡子
+
+本文则是根据上述文章进行的群内讨论的提纲
 
 #2 从AOP拦截的时机来看待AOP
 
@@ -18,7 +26,7 @@
 -	4 自定义类加载器：在目标类加载前，将切面逻辑加入目标类字节码中
 -	5 字节码转换器：在目标类加载前，将切面逻辑加入目标类字节码中（jdk1.5的Instrumentation）；在目标类加载后，将切面逻辑加入目标类字节码中（jdk1.6的Instrumentation触发jvm重新类加载）
 
-#3 角色梳理：AOP联盟、Aspectj、SpringAOP以及他们各自的职责。
+#3 角色梳理：AOP联盟、Aspectj、SpringAOP
 
 #3.1 AOP的概念
 
@@ -64,28 +72,68 @@ CGLib动态代理：
 
 ProxyFactory简单的对jdk和cglib的封装，根据配置（强制采用cglib）或者自行决定（根据是否实现接口）采用jdk动态代理还是cglib动态代理。
 
-对jdk动态代理的封装：
+使用案例如下：
 
-InvocationHandler h：固定是JdkDynamicAopProxy，其中InvocationHandler的接口方法Object invoke(Object proxy, Method method, Object[] args)实现如下：
+![ProxyFactory使用案例](https://static.oschina.net/uploads/img/201510/14203944_LuCn.png "ProxyFactory使用案例")
+
+对jdk动态代理的封装（cglib也类似不再说明）：
+
+InvocationHandler h：固定是JdkDynamicAopProxy，其中对
+
+InvocationHandler的接口方法Object invoke(Object proxy, Method method, Object[] args)实现如下：
 
 ![JdkDynamicAopProxy对InvocationHandler的实现](https://static.oschina.net/uploads/img/201510/14201123_NL6U.png "JdkDynamicAopProxy对InvocationHandler的实现")
 
+-	第一步：根据调用的类和方法获取拦截器MethodInterceptor集合，内部会使用pointcut来进行过滤。后面详细说说MethodInterceptor和Advice的区别。
+
+	ProxyFactory有如下两种方法：
+		
+		addAdvice(Advice advice)
+		addAdvisor(Advisor advisor)
+
+	Advisor：其实是Advice和Pointcut的集合，所以在添加Advice是会给出一个默认的Pointcut
+
+-	第二步：如果拦截器集合为空，则通过反射直接执行目标对象target的方法
+
+-	第三步：如果拦截器集合不为空，依次执行拦截器MethodInterceptor中的invoke方法。
 
 
+MethodInterceptor和Advice的区别：
 
+Advice:定义了拦截逻辑，如MethodBeforeAdvice，接口定义如下：
 
+	public interface MethodBeforeAdvice extends BeforeAdvice {
+		void before(Method method, Object[] args, Object target) throws Throwable;
+	}
+
+而MethodInterceptor则是决定Advice的调用时机，同时对外提供统一的调用方法invoke，如MethodBeforeAdviceInterceptor
+
+	public class MethodBeforeAdviceInterceptor implements MethodInterceptor, Serializable {
+
+		private MethodBeforeAdvice advice;
+
+		public MethodBeforeAdviceInterceptor(MethodBeforeAdvice advice) {
+			Assert.notNull(advice, "Advice must not be null");
+			this.advice = advice;
+		}
+
+		@Override
+		public Object invoke(MethodInvocation mi) throws Throwable {
+			this.advice.before(mi.getMethod(), mi.getArguments(), mi.getThis() );
+			return mi.proceed();
+		}
+	}
 
 问题是：
 
 -	一个ProxyFactory只能代理一个目标对象target
--	对于
-
+-	还要手动的配置每一个Advisor bean对应的Advice和Pointcut。
 
 ##4.3 
 
-为了对某些方法进行拦截，引入切面Aspect（包含了增强Advice和切入点Pointcut），使用切入点来选择要拦截的方法
+为了对某些方法进行拦截，引入切面Aspect（包含了多个增强Advice和多个切入点Pointcut的组合，即多个Advisor）
 
-切面可以是：
+Pointcut可以是：
 
 -	正则表达式类型 JdkRegexpMethodPointcut
 -	aspectj的pointcut表达式类型，如
@@ -98,11 +146,3 @@ InvocationHandler h：固定是JdkDynamicAopProxy，其中InvocationHandler的�
 上述ProxyFactory还只能针对某一个target进行代理。为了对符合pointcut条件的某一批类都进行AOP代理，引入AbstractAutoProxyCreator来进行批量处理。对于每一个对象仍然采用ProxyFactory来进行代理
 
 ![AbstractAutoProxyCreator批量代理](https://static.oschina.net/uploads/img/201510/14194847_TxWI.png "AbstractAutoProxyCreator批量代理")
-
-#5 强烈推荐文章
-
--	[AOP 那点事儿](http://my.oschina.net/huangyong/blog/161338) 黄勇
--	[AOP 那点事儿（续集）](http://my.oschina.net/huangyong/blog/161402) 黄勇
--	[我对AOP的理解](http://jinnianshilongnian.iteye.com/blog/1474325)   开涛
--	[AOP实现机制](http://www.iteye.com/topic/1116696) fantasy
--	[跟我学aspectj](http://blog.csdn.net/zl3450341/article/category/1169602) 兔子党-大胡子
