@@ -50,6 +50,10 @@
 
 #3.2 Aspectj
 
+如下简单使用案例：
+
+![aspectj使用案例](https://static.oschina.net/uploads/img/201510/15075854_KnF3.png "aspectj使用案例")
+
 这里有个系列文章[跟我学aspectj](http://blog.csdn.net/zl3450341/article/category/1169602)
 
 -	在编译时期就织入
@@ -93,7 +97,15 @@ InvocationHandler的接口方法Object invoke(Object proxy, Method method, Objec
 
 	Advisor：其实是Advice和Pointcut的集合，所以在添加Advice是会给出一个默认的Pointcut
 
--	第二步：如果拦截器集合为空，则通过反射直接执行目标对象target的方法
+	Pointcut可以是：
+
+	-	正则表达式类型 JdkRegexpMethodPointcut
+	-	aspectj的pointcut表达式类型，如
+	
+			execution(* com.aspectj.demo.test.HelloWorld.main(..))
+			@annotation(aop.demo.Tag)
+
+-	第二步：如果拦截器集合为空(即没有代理该方法)，则通过反射直接执行目标对象target的方法
 
 -	第三步：如果拦截器集合不为空，依次执行拦截器MethodInterceptor中的invoke方法。
 
@@ -124,25 +136,60 @@ Advice:定义了拦截逻辑，如MethodBeforeAdvice，接口定义如下：
 		}
 	}
 
-问题是：
+上述就是ProxyFactory对jdk和cglib的封装，简化了我们的操作。但是还有如下问题：
 
 -	一个ProxyFactory只能代理一个目标对象target
 -	还要手动的配置每一个Advisor bean对应的Advice和Pointcut。
 
-##4.3 
+##4.3 批量代理
 
-为了对某些方法进行拦截，引入切面Aspect（包含了多个增强Advice和多个切入点Pointcut的组合，即多个Advisor）
+上述ProxyFactory还只能针对某一个target进行代理
 
-Pointcut可以是：
+我们现在的需求是：对一批对象进行批量代理。这时需要两大部分：
 
--	正则表达式类型 JdkRegexpMethodPointcut
--	aspectj的pointcut表达式类型，如
-	
-		execution(* com.aspectj.demo.test.HelloWorld.main(..))
-		@annotation(aop.demo.Tag)
+-	一批Advice和Pointcut组合，即会有多个Advisor，符合不同Pointcut的进行不同的Advice增强。这里即切面，切面并没有具体的类进行描述，可以理解成一个Advisor的集合（一个Advisor包含了一个Advice和一个Pointcut），如下所示
 
-##4.4 批量代理
+	如xml配置形式配置切面：
 
-上述ProxyFactory还只能针对某一个target进行代理。为了对符合pointcut条件的某一批类都进行AOP代理，引入AbstractAutoProxyCreator来进行批量处理。对于每一个对象仍然采用ProxyFactory来进行代理
+	![xml配置形式配置切面](https://static.oschina.net/uploads/img/201510/15071709_2QzC.png "xml配置形式配置切面")
 
-![AbstractAutoProxyCreator批量代理](https://static.oschina.net/uploads/img/201510/14194847_TxWI.png "AbstractAutoProxyCreator批量代理")
+	注解形式配置切面，同时要开启aop:aspectj-autoproxy配置：
+
+	![注解形式配置切面](https://static.oschina.net/uploads/img/201510/15072720_9OcW.png "注解形式配置切面")
+
+-	切面仅仅是描述哪些类的哪些方法被哪些Advice增强，仅仅是描述而已，需要有一个类来承担这样的批量代理的工作，这就是基类AbstractAutoProxyCreator来完成这一项工作，对于每一个符合条件的bean都仍然采用ProxyFactory来进行代理的创建：
+
+	![AbstractAutoProxyCreator批量代理](https://static.oschina.net/uploads/img/201510/14194847_TxWI.png "AbstractAutoProxyCreator批量代理")
+
+	所以Spring中的AOP全部是基于ProxyFactory这套创建流程的。而AbstractAutoProxyCreator子类则是分别取解析不同的切面配置
+
+	如上述的aop:config配置是启用了AspectJAwareAdvisorAutoProxyCreator来进行批量代理的
+
+	如上述注解形式开启的aop:aspectj-autoproxy是启用了AnnotationAwareAspectJAutoProxyCreator来进行批量代理的
+
+
+##4.4 Spring对aspectj的引入的体现
+
+我们知道aspectj是静态织入，Spring是怎么来引入aspectj呢？
+
+aspectj是静态织入，需要单独的编译器来进行编译，但是功能强大。如使用案例：
+
+![aspectj使用案例](https://static.oschina.net/uploads/img/201510/15075854_KnF3.png "aspectj使用案例")
+
+强大的pointcut表达式功能（具体的自行去搜），同时还具有了注解功能，如下：
+
+-	@Aspect
+-	@Before
+-	@Pointcut
+
+等这些都是aspectj的实现
+
+而什么才叫Spring最原始的AOP呢？就是ProxyFactory这一层，仅仅对jdk和cglib进行了简单的封装。
+
+Spring原始的ProxyFactory代理，手动编程或配置进行代理都比较麻烦，引入了aspectj的某些功能
+
+-	引入了aspectj的pointcut表达式功能
+-	引入了上述注解功能
+
+但是引入之后呢，还是全部转化成Spring原本的Advisor，最终仍然使用原本的ProxyFactory来创建代理，而不是像aspectj那样需要单独的编译器。
+
