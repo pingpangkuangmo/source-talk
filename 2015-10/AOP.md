@@ -26,9 +26,13 @@
 -	4 自定义类加载器：在目标类加载前，将切面逻辑加入目标类字节码中
 -	5 字节码转换器：在目标类加载前，将切面逻辑加入目标类字节码中（jdk1.5的Instrumentation）；在目标类加载后，将切面逻辑加入目标类字节码中（jdk1.6的Instrumentation触发jvm重新类加载）
 
+	在类的字节码载入jvm前会调用ClassFileTransformer的transform方法，从而实现修改原类方法的功能，实现aop
+
+	如[日志记录工具anylog](http://www.oschina.net/p/anylog),就是使用自定义的ClassFileTransformer来动态修改字节码（内部借助于javassist来修改字节码）
+
 #3 角色梳理：AOP联盟、Aspectj、SpringAOP
 
-#3.1 AOP的概念
+##3.1 AOP的概念
 
 -	Pointcut：切入点，表示在哪里进行拦截，简单理解如正则表达式
 -	Joinpoint：连接点，符合上述正则表达式的一个具体对象
@@ -48,7 +52,7 @@
 -	Weaving：织入，可以是编译期、字节码加载前、字节码加载后
 
 
-#3.2 Aspectj
+##3.2 Aspectj
 
 如下简单使用案例：
 
