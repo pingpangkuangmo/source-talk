@@ -5,6 +5,7 @@
 -	[infoq:Java NIO通信框架在电信领域的实践](http://www.infoq.com/cn/articles/practice-of-java-nio-communication-framework)
 -	[经典tcp粘包分析](http://www.cnblogs.com/zhaox583132460/p/3372381.html)
 -	[Mina、Netty、Twisted一起学](http://blog.csdn.net/column/details/mina-netty-twisted.html)
+-	[理解Java NIO](http://my.oschina.net/regulusun/blog/137819)
 
 #1 Java原生NIO类库
 
